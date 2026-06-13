@@ -103,12 +103,12 @@
 
     <div class="secret-admin-bar" id="secretAdminBar">
         <button class="btn-action" onclick="openCreateModal()">+ Create Article</button>
-        <span style="color:#3366cc;font-size:12px;font-weight:bold;">⚡ EDIT MODE</span>
+        <span style="color:#3366cc;font-size:12px;font-weight:bold;">EDIT MODE</span>
         <button class="btn-action btn-danger" id="deleteArticleBtn" onclick="deleteCurrentArticle()" style="display:none;">Delete Page</button>
     </div>
 
     <div class="nav-header-row" id="navHeader">
-        <button class="back-link-btn" onclick="resetToSearchView()">← Back to Search</button>
+        <button class="back-link-btn" onclick="resetToSearchView()">Back to Search</button>
     </div>
 
     <!-- SEARCH VIEW -->
@@ -181,7 +181,7 @@
                 <button class="carousel-arrow right" id="arrowRight" onclick="carouselMove(1)">&#8250;</button>
             </div>
             <div class="carousel-dots" id="carouselDots"></div>
-            <div id="photoUploadTrigger" class="photo-upload-trigger" onclick="document.getElementById('galleryFileInput').click()">📷 Add Photo</div>
+            <div id="photoUploadTrigger" class="photo-upload-trigger" onclick="document.getElementById('galleryFileInput').click()">Add Photo</div>
             <div class="card-img-caption" id="cardCaptionHolder" contenteditable="false" onblur="updateTextData('caption',this)">Caption</div>
         </div>
         <input type="file" id="galleryFileInput" accept="image/*" multiple style="position:fixed;top:-9999px;left:-9999px;" onchange="processLocalImage(event)">
@@ -196,8 +196,8 @@
 
         <!-- DESCRIPTION ROW — always last, hidden until clicked or notes exist -->
         <div class="desc-row" id="descRow">
-            <div class="desc-label">📝 Description</div>
-            <div class="desc-textarea" id="descTextarea" contenteditable="false" onblur="updateTextData('notes',this)"></div>
+            <div class="desc-label">More information</div>
+            <div class="desc-textare" id="descTextarea" contenteditable="false" onblur="updateTextData('notes',this)"></div>
         </div>
     </div>
 
@@ -207,7 +207,7 @@
 <div class="modal-overlay" id="createModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h3>✏️ Naya Article Banayein</h3>
+            <h3>Create Article</h3>
             <button class="modal-close" onclick="closeCreateModal()">✕</button>
         </div>
         <div class="modal-body">
@@ -227,12 +227,12 @@
                         <input type="text" placeholder="Value" class="mRowValue">
                     </div>
                 </div>
-                <button class="modal-row-add-btn" onclick="addModalRow()">+ Row Add Karo</button>
+                <button class="modal-row-add-btn" onclick="addModalRow()"> Row Add </button>
             </div>
         </div>
         <div class="modal-footer">
             <button class="modal-btn-cancel" onclick="closeCreateModal()">Cancel</button>
-            <button class="modal-btn-create" onclick="submitCreateArticle()">✓ Article Banao</button>
+            <button class="modal-btn-create" onclick="submitCreateArticle()"> Article </button>
         </div>
     </div>
 </div>
@@ -348,7 +348,7 @@
                 bottomActionRow.classList.add('visible');
                 deleteArticleBtn.style.display = 'block';
             }
-            alert(isEditStateActive ? "⚡ EDIT MODE ACTIVE!" : "🔒 EDIT MODE OFF");
+            alert(isEditStateActive ? " EDIT MODE ACTIVE!" : "🔒 EDIT MODE OFF");
             this.value = '';
             dropdownSuggestions.style.display = 'none';
             if (selectedItem) triggerCardDisplay(selectedItem.id);
