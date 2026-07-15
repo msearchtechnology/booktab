@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClock AI Pro</title>
+    <style>
+        /* CSS Variables - Gemini Dark Theme */
+        :root {
+            --bg: #000000;
+            --surface: #131314;
+            --border: #333333;
+            --text-main: #e3e3e3;
+            --text-dim: #999999;
+            --blue: #3b82f6;
+            --red: #f44336;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Google Sans', sans-serif; }
+        body { background: var(--bg); color: var(--text-main); height: 100vh; overflow: hidden; }
+
+        /* Loader */
+        .loader-container { display: flex; gap: 8px; padding: 10px; }
+        .sq { width: 10px; height: 10px; background: var(--text-dim); animation: bounce 1.2s infinite; }
+        .sq:nth-child(2) { animation-delay: 0.2s; }
+        .sq:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        /* Main UI */
+        #app { width: 100%; max-width: 800px; height: 100vh; margin: auto; display: flex; flex-direction: column; }
+        header { display: flex; justify-content: space-between; padding: 20px; align-items: center; }
+        #chat-window { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+        
+        .msg { max-width: 80%; padding: 16px; border-radius: 20px; font-size: 16px; line-height: 1.5; }
+        .ai-msg { background: var(--surface); color: var(--text-main); align-self: flex-start; }
+        .user-msg { background: var(--blue); color: white; align-self: flex-end; }
+
+        footer { padding: 20px; }
+        .input-box { background: var(--surface); border: 1px solid var(--border); border-radius: 30px; padding: 15px 25px; display: flex; gap: 15px; align-items: center; }
+        input { flex: 1; background: none; border: none; color: white; outline: none; font-size: 16px; }
+
+        /* Overlays */
+        .overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 100; display: none; padding: 40px; overflow-y: auto; }
+        .overlay.active { display: block; }
+        
+        .btn-close { cursor: pointer; background: #333; color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-bottom: 20px; }
+        .form-control { width: 100%; padding: 12px; margin: 8px 0; background: var(--surface); border: 1px solid var(--border); color: white; border-radius: 8px; }
+
+        /* Edit FAB */
+        #edit-fab { position: fixed; bottom: 30px; right: 30px; background: var(--blue); padding: 15px 20px; border-radius: 30px; font-weight: bold; cursor: pointer; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <header>
+        <div style="font-weight:bold; font-size:20px;">OpenClock AI</div>
+        <button id="search-btn" style="background:var(--surface); color:white; border:none; padding:8px 15px; border-radius:15px; cursor:pointer;">Search</button>
+    </header>
+
+    <div id="chat-window">
+        <div class="msg ai-msg">Hello, OpenClock ready.</div>
+    </div>
+
+    <footer>
+        <div class="input-box">
+            <input type="text" id="main-input" placeholder="Ask anything (Type 'edit' to config)...">
+            <button id="send-btn" style="background:none; border:none; color:white; cursor:pointer;">Send</button>
+        </div>
+    </footer>
+</div>
+
+<div id="search-overlay" class="overlay">
+    <button class="btn-close" onclick="this.parentElement.style.display='none'">Close</button>
+    <input type="text" id="search-input" class="form-control" placeholder="Search data or type 'edit'...">
+    <div id="create-new-btn" style="display:none; margin-top:20px; padding:15px; background:var(--blue); text-align:center; border-radius:10px; cursor:pointer;">Create New +</div>
+    <div id="results" style="margin-top:20px;"></div>
+    <div id="edit-fab">EDIT MODE: ON</div>
+</div>
+
+<div id="editor-modal" class="overlay" style="z-index: 200;">
+    <h2>Add New Data</h2>
+    <input type="text" id="ed-name" class="form-control" placeholder="Name">
+    <input type="text" id="ed-img" class="form-control" placeholder="Photo URL">
+    <textarea id="ed-about" class="form-control" placeholder="About..."></textarea>
+    <input type="text" id="ed-questions" class="form-control" placeholder="Questions (comma separated)">
+    <input type="text" id="ed-attrs" class="form-control" placeholder="Attributes (e.g. CEO:John, Age:30)">
+    <button id="final-save" style="width:100%; padding:15px; background:var(--blue); color:white; border:none; border-radius:10px; margin-top:20px;">Save Data</button>
+</div>
+
+<script>
+    let db = JSON.parse(localStorage.getItem('oc_db')) || [];
+    
+    // UI Helpers
+    const chatWindow = document.getElementById('chat-window');
+    
+    document.getElementById('send-btn').onclick = () => {
+        let input = document.getElementById('main-input');
+        if(!input.value) return;
+
+        // User Message
+        let div = document.createElement('div');
+        div.className = 'msg user-msg';
+        div.innerText = input.value;
+        chatWindow.appendChild(div);
+
+        // Loader
+        let loader = document.createElement('div');
+        loader.className = 'loader-container';
+        loader.innerHTML = '<div class="sq"></div><div class="sq"></div><div class="sq"></div>';
+        chatWindow.appendChild(loader);
+
+        setTimeout(() => {
+            loader.remove();
+            let res = document.createElement('div');
+            res.className = 'msg ai-msg';
+            
+            let found = db.find(x => x.name.toLowerCase() === input.value.toLowerCase());
+            if(found) {
+                res.innerText = found.about;
+            } else {
+                res.innerText = "No data found for this entry.";
+            }
+            chatWindow.appendChild(res);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }, 1000);
+
+        input.value = '';
+    };
+
+    // Edit Logic
+    document.getElementById('search-input').oninput = (e) => {
+        if(e.target.value.toLowerCase() === 'edit') {
+            document.getElementById('create-new-btn').style.display = 'block';
+            document.getElementById('edit-fab').style.display = 'block';
+            e.target.value = '';
+        }
+    };
+
+    document.getElementById('create-new-btn').onclick = () => {
+        document.getElementById('editor-modal').style.display = 'block';
+    };
+
+    document.getElementById('final-save').onclick = () => {
+        db.push({
+            name: document.getElementById('ed-name').value,
+            about: document.getElementById('ed-about').value,
+            questions: document.getElementById('ed-questions').value.split(','),
+            attributes: document.getElementById('ed-attrs').value
+        });
+        localStorage.setItem('oc_db', JSON.stringify(db));
+        alert("Saved Successfully!");
+        document.getElementById('editor-modal').style.display = 'none';
+        document.getElementById('search-overlay').style.display = 'none';
+    };
+
+    document.getElementById('edit-fab').onclick = () => {
+        document.getElementById('edit-fab').style.display = 'none';
+        document.getElementById('create-new-btn').style.display = 'none';
+    };
+
+    document.getElementById('search-btn').onclick = () => {
+        document.getElementById('search-overlay').classList.add('active');
+    };
+</script>
+</body>
+</html>
