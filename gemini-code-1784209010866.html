@@ -7,7 +7,7 @@
     <style>
         /* --- EASY COLOR CONFIGURATION --- */
         :root {
-            --logo-circle-bg: #ffffff;
+            --logo-circle-bg:#000000;
             --sq-12-oclock: #ff3b30;   
             --sq-1-30-oclock: #ff2d55; 
             --sq-3-oclock: #af52de;    
@@ -86,11 +86,28 @@
         .preview-container img { max-height: 120px; border-radius: 8px; border: 1px solid #555; }
 
         /* --- 🔍 FULLSCREEN SEARCH PAD OVERLAY --- */
-        #search-device-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #000; z-index: 500; display: none; flex-direction: column; padding: 20px; box-sizing: border-box; overflow-y: auto; }
-        .search-pad-header { display: flex; align-items: center; gap: 12px; max-width: 650px; width: 100%; margin: 10px auto 15px auto; }
-        .search-pad-container { flex-grow: 1; background-color: #000; border-radius: 35px; display: flex; align-items: center; padding: 6px 15px; border: 1.5px solid #fff; }
-        .search-pad-container input { background: transparent; border: none; color: #fff; padding: 10px 5px; font-size: 1.1rem; outline: none; width: 100%; }
-        
+#search-device-overlay { 
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background-color: #000; z-index: 500; display: none; flex-direction: column; 
+    padding: 20px; box-sizing: border-box; 
+    overflow-y: auto; /* Poore page ko scrollable rakhta hai */
+}
+
+/* WIKI DETAIL VIEW FIX: Ab ye container andar scroll hoga */
+#wiki-detail-view { 
+    display: none; 
+    background: #1c1c1e; 
+    border-radius: 20px; 
+    max-width: 650px; 
+    width: 100%; 
+    margin: 0 auto 20px auto; 
+    flex-direction: column; 
+    position: relative; 
+    border: 1px solid #2c2c2e;
+    max-height: 85vh; /* Screen se bahar nahi jayega */
+    overflow-y: auto; /* Card ke andar ka content scroll hoga */
+    overscroll-behavior: contain; /* Parent scroll ko block karega jab card scroll ho raha ho */
+}
         #edit-mode-status { display: none; text-align: center; color: #ff3b30; font-weight: bold; margin-bottom: 10px; font-size: 0.95rem; border: 1px dashed #ff3b30; padding: 5px; border-radius: 10px; max-width: 650px; margin: 0 auto 15px auto; }
         #create-new-btn { display: none; background: #fff; color: #000; border: none; padding: 12px 24px; border-radius: 25px; font-weight: bold; cursor: pointer; margin: 0 auto 15px auto; width: max-content; font-size: 1rem; }
 
