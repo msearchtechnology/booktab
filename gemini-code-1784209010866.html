@@ -85,7 +85,7 @@
         .preview-container { text-align: center; margin-bottom: 15px; }
         .preview-container img { max-height: 120px; border-radius: 8px; border: 1px solid #555; }
 
-        /* --- WIKIPEDIA KNOWLEDGE PANEL (FIXED) --- */
+        /* --- WIKIPEDIA KNOWLEDGE PANEL (SCROLL FIX) --- */
 #wiki-detail-view { 
     display: none; 
     background: #1c1c1e; 
@@ -97,10 +97,10 @@
     position: relative; 
     border: 1px solid #2c2c2e;
     
-    /* FIX FOR SCROLLING: */
-    max-height: 80vh;        /* Yeh card ko screen se bada nahi hone dega */
-    overflow-y: auto;        /* Yeh card ke andar scrollbar layega */
-    -webkit-overflow-scrolling: touch; /* Mobile par smooth scrolling ke liye */
+    /* SCROLL FIX IS HERE */
+    max-height: 80vh;          /* Card screen height ka 80% hi lega */
+    overflow-y: auto;          /* Agar content bada hai, toh card ke andar scroll aayega */
+    -webkit-overflow-scrolling: touch; /* Mobile smooth scrolling ke liye */
 }
 
         /* Suggestion Feed CSS */
