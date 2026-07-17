@@ -257,16 +257,620 @@
         // =========================================================================
         
         // 1. Module 1: Tokenizer & Vectorizer यहा पेस्ट करें
+        class SelfMadeTokenizer {
+    constructor(maxLength = 10) {
+        // <PAD> ka matlab khali space ko bherna (value 0)
+        // <UNK> ka matlab unknown words jo dictionary mein nahi hain (value 1)
+        this.vocab = { "<PAD>": 0, "<UNK>": 1 }; 
+        this.nextId = 2;
+        this.maxLength = maxLength; // Vector ka fixed size (Neural Network ke input ke liye)
+    }
+
+    // 🧼 Stage 1 & 2: Text Sanitization & Token Splitting
+    tokenize(text) {
+        return text
+            .toLowerCase() // Sabhi words ko lowercase banana
+            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "") // Punctuation hatana
+            .replace(/\s+/g, " ") // Extra spaces hatana
+            .trim()
+            .split(" ") // Space ke basis par todna
+            .filter(word => word.length > 0); // Khali spaces ko filter karna
+    }
+
+    // 📖 Stage 3: Dynamic Vocabulary Builder (Word Bank ko update karna)
+    fitOnTexts(textsArray) {
+        textsArray.forEach(text => {
+            const tokens = this.tokenize(text);
+            tokens.forEach(token => {
+                if (this.vocab[token] === undefined) {
+                    this.vocab[token] = this.nextId;
+                    this.nextId++;
+                }
+            });
+        });
+    }
+
+    // 🔢 Stage 4 & 5: Word-to-ID Mapping & Padded Vector Generation
+    textsToVectors(text) {
+        const tokens = this.tokenize(text);
+        const vector = [];
+
+        // Words ko numerical IDs mein badalna
+        tokens.forEach(token => {
+            if (this.vocab[token] !== undefined) {
+                vector.push(this.vocab[token]);
+            } else {
+                vector.push(this.vocab["<UNK>"]); // Agar word dictionary mein nahi hai
+            }
+        });
+
+        // 🛡️ Padding Logic: Vector size ko exactly maxLength ke barabar rakhna
+        while (vector.length < this.maxLength) {
+            vector.push(this.vocab["<PAD>"]); // Chota hai toh 0s add karo
+        }
+
+        if (vector.length > this.maxLength) {
+            return vector.slice(0, this.maxLength); // Bada hai toh limit tak cut karo
+        }
+
+        return vector;
+    }
+
+    // 🔄 Reverse Mapping: Numbers ko wapas English words mein badalna
+    vectorsToText(vector) {
+        const reverseVocab = {};
+        for (let key in this.vocab) {
+            reverseVocab[this.vocab[key]] = key;
+        }
+        return vector
+            .map(id => reverseVocab[id] || "<UNK>")
+            .filter(word => word !== "<PAD>") // Padding words ko output se hatana
+            .join(" ");
+    }
+        }
         
         // 2. Module 2: Intent Classifier & Router Model यहा पेस्ट करें
+        // 🧠 Module 2: Intent Classifier & Router Model (Pure JavaScript Neural Network)
+class SelfMadeIntentClassifier {
+    constructor(inputSize, outputLabels) {
+        this.inputSize = inputSize;
+        this.outputLabels = outputLabels; // Array of intents: e.g., ['SEARCH_DATA', 'GET_RELATION', 'IMAGE_QUERY']
+        this.hiddenSize = 8; // Hidden neurons for processing patterns
+        
+        // Random Initialization of Weights and Biases (-1 to 1)
+        this.weights_ih = Array.from({ length: this.hiddenSize }, () => 
+            Array.from({ length: this.inputSize }, () => Math.random() * 2 - 1)
+        );
+        this.weights_ho = Array.from({ length: this.outputLabels.length }, () => 
+            Array.from({ length: this.hiddenSize }, () => Math.random() * 2 - 1)
+        );
+        this.bias_h = Array.from({ length: this.hiddenSize }, () => Math.random() * 2 - 1);
+        this.bias_o = Array.from({ length: this.outputLabels.length }, () => Math.random() * 2 - 1);
+        
+        this.learningRate = 0.05;
+    }
+
+    // Activation Function for Hidden Layer
+    sigmoid(x) { 
+        return 1 / (1 + Math.exp(-x)); 
+    }
+
+    // Derivative of Sigmoid for Error Correction
+    dsigmoid(y) { 
+        return y * (1 - y); 
+    }
+
+    // Softmax Activation for Output Probabilities
+    softmax(arr) {
+        const max = Math.max(...arr);
+        const exps = arr.map(x => Math.exp(x - max));
+        const sum = exps.reduce((a, b) => a + b, 0);
+        return exps.map(x => x / (sum || 1));
+    }
+
+    // 🚀 FORWARD PROPAGATION: Classifies the incoming text vector
+    predict(inputVector) {
+        // 1. Process Input to Hidden Layer
+        let hidden = [];
+        for (let i = 0; i < this.hiddenSize; i++) {
+            let sum = this.bias_h[i];
+            for (let j = 0; j < this.inputSize; j++) {
+                sum += inputVector[j] * this.weights_ih[i][j];
+            }
+            hidden[i] = this.sigmoid(sum);
+        }
+
+        // 2. Process Hidden to Output Layer
+        let outputs = [];
+        for (let i = 0; i < this.outputLabels.length; i++) {
+            let sum = this.bias_o[i];
+            for (let j = 0; j < this.hiddenSize; j++) {
+                sum += hidden[j] * this.weights_ho[i][j];
+            }
+            outputs[i] = sum; 
+        }
+
+        // 3. Convert outputs to probabilistic scores
+        const probabilities = this.softmax(outputs);
+        const maxIndex = probabilities.indexOf(Math.max(...probabilities));
+        
+        return {
+            intent: this.outputLabels[maxIndex],
+            confidence: probabilities[maxIndex],
+            probabilities: probabilities,
+            hidden: hidden
+        };
+    }
+
+    // 🏋️‍♂️ BACKPROPAGATION: Adjusts neural network weights to learn patterns offline
+    train(inputVector, targetLabel) {
+        const targetIndex = this.outputLabels.indexOf(targetLabel);
+        if (targetIndex === -1) return;
+
+        // One-hot encoded target array generation
+        const targets = new Array(this.outputLabels.length).fill(0);
+        targets[targetIndex] = 1;
+
+        // Run forward propagation to capture internal states
+        const prediction = this.predict(inputVector);
+        const hidden = prediction.hidden;
+        
+        // Compute Output Layer Gradients (Cross-Entropy Delta)
+        const outputErrors = [];
+        for (let i = 0; i < this.outputLabels.length; i++) {
+            outputErrors[i] = targets[i] - prediction.probabilities[i];
+        }
+
+        // Compute Hidden Layer Errors
+        const hiddenErrors = [];
+        for (let i = 0; i < this.hiddenSize; i++) {
+            let error = 0;
+            for (let j = 0; j < this.outputLabels.length; j++) {
+                error += outputErrors[j] * this.weights_ho[j][i];
+            }
+            hiddenErrors[i] = error * this.dsigmoid(hidden[i]);
+        }
+
+        // Weight & Bias Optimization: Hidden to Output Layer
+        for (let i = 0; i < this.outputLabels.length; i++) {
+            this.bias_o[i] += outputErrors[i] * this.learningRate;
+            for (let j = 0; j < this.hiddenSize; j++) {
+                this.weights_ho[i][j] += outputErrors[i] * hidden[j] * this.learningRate;
+            }
+        }
+
+        // Weight & Bias Optimization: Input to Hidden Layer
+        for (let i = 0; i < this.hiddenSize; i++) {
+            this.bias_h[i] += hiddenErrors[i] * this.learningRate;
+            for (let j = 0; j < this.inputSize; j++) {
+                this.weights_ih[i][j] += hiddenErrors[i] * inputVector[j] * this.learningRate;
+            }
+        }
+    }
+        }
         
         // 3. Module 3: Attention & Context Model यहा पेस्ट करें
+        // 🧠 Module 3: Attention & Context Model (Pure JavaScript Self-Attention & Short-Term Memory)
+class SelfMadeAttentionContext {
+    constructor(vectorSize) {
+        this.vectorSize = vectorSize; // Input size (same as Tokenizer maxLength)
+        
+        // Query, Key, and Value matrices for Self-Attention
+        this.W_query = Array.from({ length: this.vectorSize }, () => 
+            Array.from({ length: this.vectorSize }, () => Math.random() * 2 - 1)
+        );
+        this.W_key = Array.from({ length: this.vectorSize }, () => 
+            Array.from({ length: this.vectorSize }, () => Math.random() * 2 - 1)
+        );
+        this.W_value = Array.from({ length: this.vectorSize }, () => 
+            Array.from({ length: this.vectorSize }, () => Math.random() * 2 - 1)
+        );
+
+        // Short-Term Memory buffer to store past interactions
+        this.contextMemory = [];
+        this.maxMemorySegments = 5; // Keeps track of last 5 turns
+    }
+
+    // Mathematical Dot Product of two arrays
+    dotProduct(arr1, arr2) {
+        return arr1.reduce((sum, val, i) => sum + (val * arr2[i] || 0), 0);
+    }
+
+    // Multiplies a vector by a transformation matrix
+    matrixMultiply(vector, matrix) {
+        let result = [];
+        for (let i = 0; i < matrix.length; i++) {
+            result[i] = this.dotProduct(vector, matrix[i]);
+        }
+        return result;
+    }
+
+    // ⚡ SELF-ATTENTION GENERATOR: Finds relationships between vector positions
+    calculateAttention(inputVector) {
+        // Step 1: Generate Query, Key, and Value vectors
+        const Q = this.matrixMultiply(inputVector, this.W_query);
+        const K = this.matrixMultiply(inputVector, this.W_key);
+        const V = this.matrixMultiply(inputVector, this.W_value);
+
+        // Step 2: Compute Attention Scores (Dot product of Q and K)
+        const attentionScores = [];
+        let scoreSum = 0;
+        for (let i = 0; i < this.vectorSize; i++) {
+            // Division by Math.sqrt(vectorSize) acts as Scaled Dot-Product scaling factor
+            const rawScore = (Q[i] * K[i]) / Math.sqrt(this.vectorSize);
+            attentionScores[i] = Math.exp(rawScore); // Exponential for Softmax behavior
+            scoreSum += attentionScores[i];
+        }
+
+        // Step 3: Normalize scores and apply them to the Value vector
+        const normalizedScores = attentionScores.map(score => score / (scoreSum || 1));
+        const contextWeightedVector = V.map((v, i) => v * normalizedScores[i]);
+
+        return {
+            weightedVector: contextWeightedVector,
+            scores: normalizedScores
+        };
+    }
+
+    // 💾 CONTEXT MEMORY MANAGEMENT
+    // Adds a new interaction to the short-term memory queue
+    remember(userVector, botVector) {
+        if (this.contextMemory.length >= this.maxMemorySegments) {
+            this.contextMemory.shift(); // Remove oldest memory when full
+        }
+        this.contextMemory.push({
+            user: userVector,
+            bot: botVector,
+            timestamp: Date.now()
+        });
+    }
+
+    // Merges current input vector with short-term history
+    mergeContext(currentInputVector) {
+        if (this.contextMemory.length === 0) {
+            return currentInputVector;
+        }
+
+        // Get the last interaction from history
+        const lastInteraction = this.contextMemory[this.contextMemory.length - 1];
+        const lastUserVec = lastInteraction.user;
+
+        // Apply mathematical fusion (decayed weighted average between history and new input)
+        const fusionRatio = 0.35; // 35% weightage to previous conversation context
+        const fusedVector = currentInputVector.map((val, i) => {
+            return (val * (1 - fusionRatio)) + ((lastUserVec[i] || 0) * fusionRatio);
+        });
+
+        return fusedVector;
+    }
+
+    // Flushes/Clears the conversation memory
+    forgetAll() {
+        this.contextMemory = [];
+    }
+        }
         
         // 4. Module 4: Knowledge Graph & Relational Model यहा पेस्ट करें
+        // 🧠 Module 4: Knowledge Graph & Relational Model (Pure JavaScript Permanent Memory)
+class SelfMadeKnowledgeGraph {
+    constructor() {
+        // Nodes store the entities (e.g., "google", "larry_page")
+        this.nodes = new Set();
+        // Edges store the relationships: { subject: { relationship: [objects] } }
+        this.edges = {};
+    }
+
+    // 📌 Adds a new entity node to the graph memory
+    addNode(node) {
+        const normalizedNode = node.toLowerCase().trim().replace(/\s+/g, "_");
+        this.nodes.add(normalizedNode);
+        if (!this.edges[normalizedNode]) {
+            this.edges[normalizedNode] = {};
+        }
+        return normalizedNode;
+    }
+
+    // 🔗 Creates a relational connection (Triple) between two nodes
+    addRelation(subject, relationship, object) {
+        const sub = this.addNode(subject);
+        const rel = relationship.toLowerCase().trim().replace(/\s+/g, "_");
+        const obj = this.addNode(object);
+
+        if (!this.edges[sub][rel]) {
+            this.edges[sub][rel] = [];
+        }
+
+        // Avoid duplicate relations
+        if (!this.edges[sub][rel].includes(obj)) {
+            this.edges[sub][rel].push(obj);
+        }
+    }
+
+    // 🔍 Searches for immediate direct relationships (Single-hop query)
+    getRelation(subject, relationship) {
+        const sub = subject.toLowerCase().trim().replace(/\s+/g, "_");
+        const rel = relationship.toLowerCase().trim().replace(/\s+/g, "_");
+
+        if (this.edges[sub] && this.edges[sub][rel]) {
+            return this.edges[sub][rel];
+        }
+        return [];
+    }
+
+    // 🚀 MULTI-HOP REASONING: Traverses the graph to find connected paths
+    // Example: "Where does Google's founder live?" 
+    // Path: google -> (founded_by) -> larry_page -> (lives_in) -> USA
+    queryPath(startNode, relationsArray) {
+        let currentNodes = [startNode.toLowerCase().trim().replace(/\s+/g, "_")];
+
+        for (const rel of relationsArray) {
+            const normalizedRel = rel.toLowerCase().trim().replace(/\s+/g, "_");
+            let nextNodes = [];
+
+            for (const node of currentNodes) {
+                if (this.edges[node] && this.edges[node][normalizedRel]) {
+                    nextNodes = nextNodes.concat(this.edges[node][normalizedRel]);
+                }
+            }
+
+            if (nextNodes.length === 0) {
+                return []; // Path broken
+            }
+            currentNodes = nextNodes;
+        }
+
+        return currentNodes; // Returns the final found entities
+    }
+
+    // 📂 Export graph data to JSON string (for offline localStorage saving)
+    exportMemory() {
+        return JSON.stringify({
+            nodes: Array.from(this.nodes),
+            edges: this.edges
+        });
+    }
+
+    // 📥 Import graph data back into active memory
+    importMemory(jsonString) {
+        try {
+            const data = JSON.parse(jsonString);
+            this.nodes = new Set(data.nodes);
+            this.edges = data.edges;
+        } catch (e) {
+            console.error("Failed to load Knowledge Graph memory:", e);
+        }
+    }
+
+    // 🧹 Erase specific memory node and its active relations
+    deleteNode(node) {
+        const target = node.toLowerCase().trim().replace(/\s+/g, "_");
+        if (!this.nodes.has(target)) return;
+
+        // Delete from nodes set
+        this.nodes.delete(target);
+        
+        // Delete all outgoing relations
+        delete this.edges[target];
+
+        // Delete any incoming relations from other nodes pointing to this target
+        for (const source in this.edges) {
+            for (const rel in this.edges[source]) {
+                this.edges[source][rel] = this.edges[source][rel].filter(obj => obj !== target);
+                if (this.edges[source][rel].length === 0) {
+                    delete this.edges[source][rel];
+                }
+            }
+        }
+    }
+        }
         
         // 5. Module 5: Next-Word Prediction Model यहा पेस्ट करें
+        // 🧠 Module 5: Next-Word Prediction Model (Pure JavaScript Markov Chain & Recurrent Probability Engine)
+class SelfMadeNextWordPredictor {
+    constructor() {
+        // chain stores transition frequencies: { "current_word": { "next_word": frequency_count } }
+        this.chain = {};
+        // Bi-gram tracker for better context: { "word1_word2": { "next_word": frequency_count } }
+        this.bigramChain = {};
+    }
+
+    // 🧼 Helper to clean and format tokens (matches Tokenizer output)
+    cleanToken(word) {
+        return word.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "");
+    }
+
+    // 🏋️‍♂️ TRAINING: Analyzes text corpus to learn word sequences and transition probabilities
+    train(textCorpusArray) {
+        textCorpusArray.forEach(sentence => {
+            const words = sentence.split(/\s+/).map(w => this.cleanToken(w)).filter(w => w.length > 0);
+            
+            for (let i = 0; i < words.length - 1; i++) {
+                const currentWord = words[i];
+                const nextWord = words[i + 1];
+
+                // 1. Train Single Word (Uni-gram) Transitions
+                if (!this.chain[currentWord]) {
+                    this.chain[currentWord] = {};
+                }
+                this.chain[currentWord][nextWord] = (this.chain[currentWord][nextWord] || 0) + 1;
+
+                // 2. Train Two-Word (Bi-gram) Transitions for better contextual flow
+                if (i < words.length - 2) {
+                    const wordPair = `${words[i]}_${words[i + 1]}`;
+                    const futureWord = words[i + 2];
+
+                    if (!this.bigramChain[wordPair]) {
+                        this.bigramChain[wordPair] = {};
+                    }
+                    this.bigramChain[wordPair][futureWord] = (this.bigramChain[wordPair][futureWord] || 0) + 1;
+                }
+            }
+        });
+    }
+
+    // 🎯 PREDICT NEXT WORD: Evaluates the most probable next word based on context
+    predictNextWord(recentWordsArray) {
+        const len = recentWordsArray.length;
+        if (len === 0) return null;
+
+        const lastWord = this.cleanToken(recentWordsArray[len - 1]);
+        let candidates = {};
+
+        // Step 1: Try to use Bi-gram context (last two words) for higher accuracy
+        if (len >= 2) {
+            const secondLastWord = this.cleanToken(recentWordsArray[len - 2]);
+            const wordPair = `${secondLastWord}_${lastWord}`;
+            if (this.bigramChain[wordPair]) {
+                candidates = this.bigramChain[wordPair];
+            }
+        }
+
+        // Step 2: Fallback to Uni-gram context (last word only) if no bi-gram match is found
+        if (Object.keys(candidates).length === 0 && this.chain[lastWord]) {
+            candidates = this.chain[lastWord];
+        }
+
+        // Return null if the sequence/word has never been seen before
+        if (Object.keys(candidates).length === 0) {
+            return null;
+        }
+
+        // Step 3: Find the candidate with the highest frequency/probability
+        let bestWord = null;
+        let maxCount = -1;
+
+        for (const [word, count] of Object.entries(candidates)) {
+            if (count > maxCount) {
+                maxCount = count;
+                bestWord = word;
+            }
+        }
+
+        return bestWord;
+    }
+
+    // 🚀 SENTENCE GENERATION: Generates a complete response word-by-word
+    generateSentence(seedText, maxWords = 12) {
+        let words = seedText.split(/\s+/).map(w => this.cleanToken(w)).filter(w => w.length > 0);
+        let generatedCount = 0;
+
+        while (generatedCount < maxWords) {
+            const nextWord = this.predictNextWord(words);
+            
+            // Break loop if the model cannot predict any further (unknown sequence)
+            if (!nextWord || nextWord === "<pad>" || nextWord === "<unk>") {
+                break;
+            }
+
+            words.push(nextWord);
+            generatedCount++;
+        }
+
+        return words.join(" ");
+    }
+        }
         
         // 6. Module 6: Vision-Matrix Model यहा पेस्ट करें
+        // 🧠 Module 6: Vision-Matrix Model (Pure JavaScript Offline Pixel Analyzer & Matrix Processor)
+class SelfMadeVisionMatrix {
+    constructor(gridSize = 16) {
+        this.gridSize = gridSize; // Normalizes any image into a fixed grid (e.g., 16x16 pixels)
+        this.featureTemplates = {}; // Stores learned structural patterns (e.g., shapes/symbols)
+    }
+
+    // 🧼 IMAGE PROCESSING: Converts raw Canvas image data into a normalized grayscale matrix
+    // Expects CanvasRenderingContext2D, or a flat array of RGBA pixels [r,g,b,a, r,g,b,a...]
+    processCanvasPixels(ctx, sourceWidth, sourceHeight) {
+        // Step 1: Extract pixel data from the canvas
+        const imgData = ctx.getImageData(0, 0, sourceWidth, sourceHeight).data;
+        
+        // Step 2: Initialize a blank normalized 2D grid
+        let grid = Array.from({ length: this.gridSize }, () => new Array(this.gridSize).fill(0));
+        
+        // Step 3: Map the source image pixels into our normalized grid using mathematical downsampling
+        const cellWidth = sourceWidth / this.gridSize;
+        const cellHeight = sourceHeight / this.gridSize;
+
+        for (let y = 0; y < this.gridSize; y++) {
+            for (let x = 0; x < this.gridSize; x++) {
+                // Calculate boundaries of current block in source coordinates
+                const startX = Math.floor(x * cellWidth);
+                const startY = Math.floor(y * cellHeight);
+                const endX = Math.floor((x + 1) * cellWidth);
+                const endY = Math.floor((y + 1) * cellHeight);
+
+                let graySum = 0;
+                let pixelCount = 0;
+
+                // Average the pixels in this block to convert to grayscale (0 to 1 range)
+                for (let py = startY; py < endY; py++) {
+                    for (let px = startX; px < endX; px++) {
+                        const idx = (py * sourceWidth + px) * 4;
+                        if (idx < imgData.length) {
+                            const r = imgData[idx];
+                            const g = imgData[idx + 1];
+                            const b = imgData[idx + 2];
+                            
+                            // Grayscale Conversion Formula (Luminosity Method)
+                            const grayscale = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                            graySum += grayscale;
+                            pixelCount++;
+                        }
+                    }
+                }
+
+                grid[y][x] = pixelCount > 0 ? graySum / pixelCount : 0;
+            }
+        }
+        return grid;
+    }
+
+    // 🎯 PATTERN REGISTRATION: Teaches the model to recognize a specific visual pattern
+    learnPattern(label, gridMatrix) {
+        this.featureTemplates[label] = gridMatrix;
+    }
+
+    // 🔍 MATRIX COMPARISON: Measures mathematical similarity (Cosine Similarity) between two matrices
+    calculateSimilarity(matrixA, matrixB) {
+        let dotProduct = 0;
+        let normA = 0;
+        let normB = 0;
+
+        for (let y = 0; y < this.gridSize; y++) {
+            for (let x = 0; x < this.gridSize; x++) {
+                const valA = matrixA[y][x];
+                const valB = matrixB[y][x];
+
+                dotProduct += valA * valB;
+                normA += valA * valA;
+                normB += valB * valB;
+            }
+        }
+
+        const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
+        return magnitude === 0 ? 0 : dotProduct / magnitude;
+    }
+
+    // 🚀 VISION RECOGNITION: Matches processed matrix against learned templates
+    classifyImage(processedMatrix) {
+        let bestMatch = "UNKNOWN";
+        let highestConfidence = 0.0;
+
+        for (const [label, templateMatrix] of Object.entries(this.featureTemplates)) {
+            const similarity = this.calculateSimilarity(processedMatrix, templateMatrix);
+            
+            if (similarity > highestConfidence) {
+                highestConfidence = similarity;
+                bestMatch = label;
+            }
+        }
+
+        return {
+            match: bestMatch,
+            confidence: highestConfidence // Range: 0 (completely different) to 1 (identical)
+        };
+    }
+        }
         
         // =========================================================================
         // 🤖 AI MODELS PASTE ZONE (END)
