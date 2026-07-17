@@ -895,10 +895,32 @@ class SelfMadeVisionMatrix {
         let currentTypingIndex = 0;
         let currentTypingElement = null;
 
-        /* --- INDEXEDDB SYSTEM --- */
+                /* --- INDEXEDDB SYSTEM --- */
         let dbInstance = null;
         const dbName = "OpenClockDB";
         const storeName = "dataStore";
+
+        // ==========================================
+        // 👇 यहाँ से नया कोड (AI Initialization) शुरू
+        // ==========================================
+        const tokenizer = new SelfMadeTokenizer(15); 
+        const intentModel = new SelfMadeIntentClassifier(15, ['SEARCH_DATA', 'CHAT_GENERAL']); 
+        const contextMemory = new SelfMadeAttentionContext(15);
+        const knowledgeGraph = new SelfMadeKnowledgeGraph();
+        const textGenerator = new SelfMadeNextWordPredictor();
+
+        function quickTrainAI() {
+            const searchVec = tokenizer.textsToVectors("what is google tell me details");
+            intentModel.train(searchVec, 'SEARCH_DATA');
+            
+            const chatVec = tokenizer.textsToVectors("hello hi how are you");
+            intentModel.train(chatVec, 'CHAT_GENERAL');
+        }
+        setTimeout(quickTrainAI, 2000); 
+        // ==========================================
+        // 👆 यहाँ नया कोड खत्म 
+        // ==========================================
+        
 
         const request = indexedDB.open(dbName, 1);
         request.onupgradeneeded = function(e) {
@@ -1420,11 +1442,107 @@ class SelfMadeVisionMatrix {
         }
 
         function triggerChatResponse(rawKey) {
-            let queryVal = rawKey.trim().toLowerCase();
-            
-            let showImage = false;
-            let showText = true;
-            let showGrid = false;
+    let queryVal = rawKey.trim().toLowerCase();
+    
+    // ==========================================
+    // 🧠 AI PIPELINE START 
+    // ==========================================
+    
+    tokenizer.fitOnTexts([queryVal]); 
+    const inputVector = tokenizer.textsToVectors(queryVal);
+    const contextVector = contextMemory.mergeContext(inputVector);
+    const prediction = intentModel.predict(contextVector);
+    const userIntent = prediction.intent;
+    const confidence = prediction.confidence;
+
+    console.log(`🤖 AI Intent: ${userIntent}, Confidence: ${confidence}`);
+
+    // ==========================================
+    // 🔀 ROUTING (तय करना कि क्या दिखाना है)
+    // ==========================================
+    
+    let matchedData = null;
+    let showImage = false;
+    let showText = true;
+    let showGrid = false;
+    let answerText = "";
+
+    if (userIntent === 'SEARCH_DATA' || queryVal.includes("what is") || queryVal.includes("details")) {
+        
+        // (आपकी पुरानी Conditional Word Filtering लॉजिक)
+        if (queryVal.endsWith(" image")) { showImage = true; showText = false; queryVal = queryVal.replace(/ image$/, "").trim(); }
+        else if (queryVal.endsWith(" all")) { showImage = true; showGrid = true; queryVal = queryVal.replace(/ all$/, "").trim(); }
+
+        // डेटाबेस (dbInstance/memory) में खोजना - (अगर आपका डेटा अलग वेरिएबल में सेव होता है, तो हम इसे बाद में एडजस्ट कर लेंगे)
+        if (typeof db !== 'undefined') {
+            for (let dbKey in db) {
+                const item = db[dbKey];
+                const itemTitle = (item.title || item.name || dbKey).toLowerCase();
+
+                if (itemTitle === queryVal || dbKey.toLowerCase() === queryVal || (item.questions && item.questions.includes(queryVal))) {
+                    matchedData = item;
+                    break;
+                }
+            }
+        }
+        
+        if (matchedData) {
+            answerText = matchedData.text || matchedData.about || JSON.stringify(matchedData);
+        } else {
+            answerText = "मेरी मेमोरी में इसके बारे में कोई जानकारी नहीं है। क्या आप 'edit' टाइप करके इसे जोड़ना चाहेंगे?";
+            showImage = false; showGrid = false;
+        }
+
+    } 
+    else {
+        answerText = textGenerator.generateSentence(queryVal, 10);
+        if (!answerText || answerText.trim() === "") {
+            answerText = "मैं अभी सीख रहा हूँ! आप मुझसे अपने सेव किए गए डेटा के बारे में पूछ सकते हैं।";
+        }
+    }
+
+    // ==========================================
+    // 💾 MEMORY UPDATE & UI 
+    // ==========================================
+    
+    const botVector = tokenizer.textsToVectors(answerText);
+    contextMemory.remember(inputVector, botVector);
+
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'ai-msg';
+    chatContainer.appendChild(aiDiv);
+    
+    if (showImage && matchedData && matchedData.src) {
+        const img = document.createElement('img');
+        img.src = matchedData.src;
+        aiDiv.appendChild(img);
+    }
+
+    if (showGrid && matchedData && matchedData.rows && matchedData.rows.length > 0) {
+        const gridDiv = document.createElement('div');
+        gridDiv.style.cssText = "display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; background: #1a1a1a; padding: 12px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #333; font-size: 0.95rem; width: fit-content;";
+        matchedData.rows.forEach(r => {
+            gridDiv.innerHTML += `<div style="color: #98989d; font-weight: 600;">${r.key}</div><div style="color: #fff;">${r.val}</div>`;
+        });
+        aiDiv.appendChild(gridDiv);
+    }
+
+    if (showText) {
+        const textSpan = document.createElement('span');
+        aiDiv.appendChild(textSpan);
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        
+        // अगर आपके कोड में animateText नाम का फंक्शन नहीं है, तो यह सीधा टेक्स्ट दिखा देगा
+        if (typeof animateText === "function") {
+            animateText(textSpan, answerText); 
+        } else {
+            textSpan.innerText = answerText;
+        }
+    } else {
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+    }
+        }
+        
 
             // Conditional Word Filtering
             if (queryVal.endsWith(" image")) {
