@@ -674,7 +674,7 @@
     <div id="textModal" class="modal">
         <div class="modal-content">
             <h3 style="margin-top:0;margin-bottom:15px;">Add Quick Text Data</h3>
-            <input type="text" id="editKey" class="modal-input" placeholder="Keyword (e.g., Google)" />
+            <input type="text" id="editKey" class="modal-input" placeholder="Keyword" />
             <textarea id="editValue" class="modal-input" rows="4" placeholder="About..."></textarea>
             <div style="display:flex;gap:10px;margin-top:5px;">
                 <button onclick="closeModal('textModal')" style="flex:1;background:#444;color:#fff;padding:12px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">Cancel</button>
@@ -688,7 +688,7 @@
         <div class="modal-content">
             <h3 style="margin-top:0;margin-bottom:10px;">Save Image Data</h3>
             <div class="preview-container"><img id="modalImgPreview" src="" alt="Selected Image" onclick="openGalleryFromModal()" /></div>
-            <input type="text" id="imageKey" class="modal-input" placeholder="Image Name (e.g., Apple)" />
+            <input type="text" id="imageKey" class="modal-input" placeholder="Image Name" />
             <textarea id="imageAbout" class="modal-input" rows="3" placeholder="About this image..."></textarea>
             <div style="display:flex;gap:10px;margin-top:5px;">
                 <button onclick="closeModal('imageModal')" style="flex:1;background:#444;color:#fff;padding:12px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">Cancel</button>
@@ -707,7 +707,7 @@
             </div>
         </div>
 
-        <div id="edit-mode-status">🛠️ EDIT MODE IS ACTIVE</div>
+        <div id="edit-mode-status">EDIT MODE IS ACTIVE</div>
         <button id="create-new-btn" onclick="showAdvancedForm()">Create New Data</button>
 
         <div id="wiki-detail-view"></div>
@@ -716,8 +716,8 @@
         <div id="advanced-form-card">
             <h3 id="form-heading" style="margin:0;font-size:1.3rem;color:#fff;">Add Data to System</h3>
             <input type="hidden" id="form-edit-id" value="" />
-            <div style="display:flex;flex-direction:column;gap:6px;"><label style="font-size:0.9rem;color:#aaa;font-weight:600;">Title</label><input type="text" id="form-title" style="background:#000;border:1px solid #333;color:#fff;padding:12px;border-radius:10px;font-size:0.95rem;outline:none;" placeholder="e.g., Google" /></div>
-            <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px;"><label style="font-size:0.9rem;color:#aaa;font-weight:600;">Short Description</label><input type="text" id="form-short-desc" style="background:#000;border:1px solid #333;color:#fff;padding:12px;border-radius:10px;font-size:0.95rem;outline:none;" placeholder="e.g., Search Engine" /></div>
+            <div style="display:flex;flex-direction:column;gap:6px;"><label style="font-size:0.9rem;color:#aaa;font-weight:600;">Title</label><input type="text" id="form-title" style="background:#000;border:1px solid #333;color:#fff;padding:12px;border-radius:10px;font-size:0.95rem;outline:none;" placeholder="" /></div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px;"><label style="font-size:0.9rem;color:#aaa;font-weight:600;">Short Description</label><input type="text" id="form-short-desc" style="background:#000;border:1px solid #333;color:#fff;padding:12px;border-radius:10px;font-size:0.95rem;outline:none;" placeholder="" /></div>
 
             <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px;">
                 <label style="font-size:0.9rem;color:#aaa;font-weight:600;">Upload Images</label>
