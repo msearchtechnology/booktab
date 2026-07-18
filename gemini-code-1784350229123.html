@@ -841,42 +841,62 @@
         }
 
         /* --- GLOBAL COGNITIVE QA ROUTER (Matches 1000+ db records) --- */
-        function triggerChatResponse(rawKey, attachedImage = "") {
-            let queryVal = rawKey.trim().toLowerCase();
-            
-            const aiDiv = document.createElement('div');
-            aiDiv.className = 'ai-msg';
-            chatContainer.appendChild(aiDiv);
-            const textSpan = document.createElement('span');
-            aiDiv.appendChild(textSpan);
+        /* --- FIXED COGNITIVE QA ROUTER --- */
+function triggerChatResponse(rawKey, attachedImage = "") {
+    let queryVal = rawKey.trim().toLowerCase();
+    
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'ai-msg';
+    chatContainer.appendChild(aiDiv);
+    const textSpan = document.createElement('span');
+    aiDiv.appendChild(textSpan);
 
-            // 1. IMAGE METADATA CROSS MATCHING
-            if (attachedImage) {
-                let matchedEntry = null;
-                for (let key in db) {
-                    const item = db[key];
-                    if (item && (item.src === attachedImage || (item.images && item.images.includes(attachedImage)))) {
-                        matchedEntry = item;
-                        break;
-                    }
-                }
-
-                if (matchedEntry) {
-                    if (queryVal.includes("created in") || queryVal.includes("when")) {
-                        const dateRow = matchedEntry.rows ? matchedEntry.rows.find(r => r.key.toLowerCase().includes('create') || r.key.toLowerCase().includes('date')) : null;
-                        if (dateRow) {
-                            animateText(textSpan, dateRow.val);
-                            return;
-                        }
-                    }
-                    animateText(textSpan, matchedEntry.about || matchedEntry.text || "Image verified inside system databank.");
-                    return;
-                } else {
-                    animateText(textSpan, "Image checked against current database. No absolute matches found.");
-                    return;
-                }
+    // 1. IMAGE HANDLING: सिर्फ तभी इमेज रेंडर होगी अगर इमेज अटैच्ड है
+    if (attachedImage) {
+        let matchedEntry = null;
+        for (let key in db) {
+            const item = db[key];
+            if (item && (item.src === attachedImage || (item.images && item.images.includes(attachedImage)))) {
+                matchedEntry = item;
+                break;
             }
+        }
+        animateText(textSpan, matchedEntry ? (matchedEntry.about || "Image detected.") : "Image received.");
+        return;
+    }
 
+    // 2. SEMANTIC ROW SEARCH (जैसे 'Founder' लिखने पर सीधा वैल्यू)
+    // यह पूरे डेटाबेस में हर रो (Row) को स्कैन करता है
+    for (let dbKey in db) {
+        const item = db[dbKey];
+        if (!item || !item.rows) continue;
+
+        for (let row of item.rows) {
+            if (queryVal === row.key.toLowerCase()) {
+                animateText(textSpan, row.val);
+                return; // इमेज बिल्कुल नहीं आएगी
+            }
+        }
+    }
+
+    // 3. ABOUT/GENERAL INFO SEARCH (OpenCLOCK के बारे में)
+    for (let dbKey in db) {
+        const item = db[dbKey];
+        if (!item) continue;
+        
+        const itemTitle = (item.title || item.name || dbKey).toLowerCase();
+        
+        if (queryVal.includes(itemTitle)) {
+            // यहाँ हमने इमेज रेंडरिंग का कोड हटा दिया है
+            animateText(textSpan, item.about || item.text || "No detailed info available.");
+            return; 
+        }
+    }
+
+    // 4. FALLBACK
+    animateText(textSpan, "डेटाबेस में इस जानकारी का कोई रिकॉर्ड नहीं मिला।");
+        }
+        
             // 2. YES/NO VERIFICATION ENGINE
             if (queryVal.includes("is the") || queryVal.includes("was the") || queryVal.includes("founder of") || queryVal.includes("owner of")) {
                 let matchesVerification = false;
